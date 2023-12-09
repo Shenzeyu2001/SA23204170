@@ -1,0 +1,38 @@
+---
+title: "Introduction to SA23204170"
+author: "Zeyu Shen"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to SA23204170}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Overview
+
+This package provide a banded autocovariance matrix estimator
+$$\widehat{\boldsymbol{\Sigma}}_{n,l}=(\widehat{\gamma}_{i-j}\mathbf{1}_{|i-j|\leq l})_{1\leq i,j\leq n},$$ where $l \geq 0$ is the banding parameter,
+which is a sparse estimator of the original autocovariace matrix $\boldsymbol{\Sigma}_n$ by
+preserving only the diagonal and the 2l main sub-diagonals of $\widehat{\boldsymbol{\Sigma}}_{n}$. The functions in this package provide a solution to obtain such estimator with the banding parameter $l$ well-choosed.
+
+The oracle method for selecting the banding parameter $l$ is based on the idea
+of risk-minimization to minimize the risk$$R(l)=\mathbb{E}\|\widehat{\boldsymbol{\Sigma}}_{n,l}^{\boldsymbol{\varepsilon}}-\boldsymbol{\Sigma}_{n}^{\boldsymbol{\varepsilon}}\|_{1}.$$
+We select $l$ from $\{0,\ldots,K-1\}$ instead of $\{0,\ldots,n-1\}$ where K is a predetermined integer much less than $n$, since $\widehat{\gamma}_k$ is not a good estimator of $\gamma_k$ if $k$ is large. In order to obtain a a realiable estimator for $R(l)$ ,we use $\widehat{\Sigma}_K$, the upper-left $K\times K$ submatrix of $\widehat{\Sigma}_n$ whose entries are estimated by using the series $\{e_1,\ldots,e_n\}$. Next, we split the whole sequence $\{e_i\}_{i=1}^n$ into $n-s+1$ ordered overlapping episodes where s is a positive integer and the length of each episode is s. And then, we use the t-th subsample block $\{e_t,\ldots,e_{t+s-1}\}$ to calculate the $K\times K$ l-banded sample autocovariance matrix $\widehat{\Sigma}_{s,l,t}^{\varepsilon}$ and use it to replace the banded autocovariance matrix $\widehat{\boldsymbol{\Sigma}}_{n,l}^{\boldsymbol{\varepsilon}}$ in (10), where $t=1,\ldots,n-s+1.$
+Following the procedures, $R(l)$ can be estimate by
+$$ \widehat{R}(l)=\frac1{n-s+1}\sum_{t=1}^{n-s+1}\|\widehat{\boldsymbol{\Sigma}}_{s,l,t}-\widehat{\boldsymbol{\Sigma}}_K\|_1,$$
+and $\hat{l}$ is chosen by minimizing $\widehat{R}(l)$. 
+
+_BACM_ fulfill the procedure above and. And _generateARMA_ is a ARMA series sampler.
+
+## Example
+
+```{r}
+library(Rcpp)
+library(SA23204170)
+error <- generateARMA(3,4,1000,c(.5,-.2),c(.3))
+l_hat <-BACM(error,20,30)
+l_hat
+```
+
+

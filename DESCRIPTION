@@ -1,0 +1,17 @@
+Package: SA23204170
+Type: Package
+Title: A banded autocovariance matrix estimator and a ARMA series sampler
+Version: 1.0
+Date: 2023-12-08
+Author: Zeyu Shen
+Maintainer: Zeyu Shen <zeyushen@mail.ustc.edu.cn>
+Description: A banded autocovariance matrix estimator and a ARMA series sampler.
+License: GPL (>= 2)
+Imports: Rcpp, microbenchmark , boot , coda
+Suggests: knitr, rmarkdown
+LinkingTo: Rcpp
+RoxygenNote: 7.2.3
+Encoding: UTF-8
+VignetteBuilder: knitr
+URL: http://github.com/shenzeyu2001/SA23204170
+BugReports: http://github.com/shenzeyu2001/SA23204170/issues

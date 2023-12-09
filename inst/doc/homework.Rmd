@@ -1,0 +1,1146 @@
+---
+title: "Homework"
+author: "Zeyu Shen"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Homework}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# HW0
+  
+  Use knitr to produce at least 3 examples. For each exampletexts should mix with figures and/or tables. Better to havemathematical formulas.
+
+## Example 1
+
+The first example is an simple regression example based on a data set which includes  observations about weight and height. Because the higher the height (H:height), the higher the weight (W:weight) is also larger, so to judge whether the weight is overweight, you can not only look at the body heavy, but also consider its height. To eliminate the height-related component of body weight, consider a simple linear regression model:
+
+$$\log(W)=a+b\times\log(H)+\epsilon,\epsilon\sim N(0,\sigma^2)$$
+
+```{r}
+library(SA23204170)#之前作业用了一个不在R包里的数据集，所以这里要library一下自己的包
+data("height_weight")
+lm <- lm(weight~height,data = log(data))
+summary(lm)$coef
+```
+The $R^2$ is `r summary(lm)$r.squared`
+
+Also ,I try to execute but not show the R codes
+
+```{r echo=FALSE}
+lm <- lm(weight~height,data = log(data))
+summary(lm)$coef
+```
+
+
+## Example 2
+
+In this part ,still based on the same data set ,I show the first six rows of it.
+
+
+
+The resulting table:
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrrrl}
+  \hline
+ & Sex & weight & Height \\ 
+  \hline
+  1 & 1	& 77	& 1.82 \\
+2 & 0	& 58	& 1.61 \\
+3 & 0	& 53	& 1.61 \\
+4 & 1	& 68	& 1.77 \\
+5 & 0	& 59	& 1.57 \\
+6 & 1	& 76	& 1.70 \\
+   \hline
+\end{tabular}
+\end{table}
+
+\newpage
+
+## Example 3
+
+In this part ,I draw several plot about the linear model above:
+
+```{r}
+plot(lm)
+```
+
+# HW1
+
+## 利用逆变换法复现当（replace= TRUE）时的sample函数
+
+```{r}
+my.sample<-function(data,size,prob=NULL){
+  if(is.null(prob)){
+    length <- length(data)
+    prob <- (numeric(length)+1)/length
+  }
+  
+  stopifnot(sum(prob)==1)#当给定的概率分布的和不为1时报错
+  # 生成[0, 1)之间的均匀随机数
+  U <- runif(size)
+  # 计算累积概率
+  cumulative_prob <- cumsum(prob)
+  # 找到所在区间
+  index <- findInterval(U,cumulative_prob)+1
+  # 根据索引获取抽样的数据
+  sampled_data <- data[index]
+  
+  return(sampled_data)
+}
+```
+
+接下来我们来测试函数
+```{r}
+# 不给定概率分布
+my.sample(letters,10)
+
+# 给定概率分布
+my.sample(letters,10,prob = c(rep(.1,5),rep(.5/21,21)))
+
+```
+
+
+## Question 3.2
+The standard Laplace distribution has density $$f(x)=\frac12e^{-|x|},x\in\mathbb{R}.$$ Use the inverse transform method to generate a random sample of size 1000 from this distribution.
+
+
+通过积分可以得到Laplace分布的CDF为$$\left.F(x)=\left\{\begin{array}{ll}\frac12e^x,&x<0\\1-\frac12e^{-x},&x\geq0.\end{array}\right.\right.$$
+可以发现CDF在$x=0$处有变化，于是对生成一个随机变量$U\sim U(0,1)$,如果$u<\frac{1}{2}$,那么$u=\frac{1}{2}e^x$，如果$u\geq \frac{1}{2}$,那么,$u=1-\frac{1}{2}e^{-x}$,因此，逆分布为$$\left.x=F^{-1}(u)=\left\{\begin{array}{ll}\log(2u),&0<u<\frac{1}{2}.\\-\log(2-2u),&\frac{1}{2}\leq u<1\end{array}\right.\right.$$。
+
+```{r}
+n <- 1000
+u <- runif(n)
+index <- which(u >= 0.5)
+x <- c(-log(2-2 * u[index]), log(2 * u[-index]))
+hist(x, breaks = "Scott", prob = TRUE, ylim = c(0, 0.5),xlim = c(-7,7))
+# 经验密度函数
+lines(density(x),lwd=2,col="black")
+# 理论密度函数
+x_positive<-c(0, qexp(ppoints(100), rate = 1))
+x_negative<--rev(x_positive)
+lines(x_negative, 0.5 * exp(x_negative),lwd=2,col="red")
+lines(x_positive, 0.5 * exp(-x_positive),lwd=2,col="red")
+```
+
+
+## Question 3.7
+
+Write a function to generate a random sample of size n from the Beta(a, b)
+distribution by the acceptance-rejection method. Generate a random sample
+of size 1000 from the Beta(3,2) distribution. Graph the histogram of the
+sample with the theoretical Beta(3,2) density superimposed.
+
+
+取$g(x)$为$U(0,1)$的密度函数即$g(x)=1$,那么有$$\frac{f(x)}{g(x)}=\frac{\Gamma(a+b)}{\Gamma(a)\Gamma(b)}\frac{x^{a-1}(1-x)^{b-1}}1\leq\frac{\Gamma(a+b)}{\Gamma(a)\Gamma(b)},\quad0<x<1$$。取常数$c=\frac{\Gamma(a+b)}{\Gamma(a)\Gamma(b)}$，那么$\frac{f(x)}{cg(x)}\leq 1$。生成随机变量$U\sim U(0,1)$，如果$u\leq x^{a-1}(1-x)^{b-1}$，则接受$x$，否则就拒绝。
+
+```{r}
+my.rbeta <- function(n, a, b) {
+n <- 1000
+k <- 0
+y <- numeric(n)
+while (k < n) {
+  u <- runif(1)
+  x <- runif(1)
+    if (x^(a - 1) * (1 - x)^(b - 1) > u) {
+      k <- k + 1
+      y[k] <- x
+    }
+ }
+return(y)
+} 
+```
+
+
+生成大小为1000，服从$B(3,2)$分布的随机样本。
+```{r}
+beta_sample<-my.rbeta(1000,3,2)
+hist(beta_sample, breaks = "Scott", prob = TRUE)
+# 经验密度函数
+lines(density(beta_sample),lwd=2,col="black")
+# 理论密度函数
+y <- seq(0, 1, 0.01)
+fy <- 12 * y^2 * (1 - y)
+lines(y, fy,lwd=2,col="red")
+```
+
+
+
+## Question 3.9 
+The rescaled Epanechnikov kernel [85] is a symmetric density function $f_e(x)=\frac34(1-x^2),\quad|x|\leq1.$ Devroye and Gy¨orfi [71, p. 236] give the following algorithm for simulation from this distribution. Generate iid $U1, U2, U3  \sim Uniform(−1, 1)$. If $|U3|\geq |U2|$ and $|U3|\geq |U1|$, deliver U2; otherwise deliver U3. Write a function to generate random variates from $f_e$, and construct the histogram density estimate of a large simulated random sample.
+
+
+```{r}
+my.gen<-function(n){
+  x<-rep(0,n)
+  u1<-runif(n,-1,1)
+  u2<-runif(n,-1,1)
+  u3<-runif(n,-1,1)
+  for (i in 1:n) {
+    if ((abs(u3[i]) >= abs(u2[i])) && (abs(u3[i]) >= abs(u1[i])))
+      x[i] <- u2[i]
+    else x[i] <- u3[i]
+  }
+  return(x)
+}
+
+x<-my.gen(10000)
+hist(x, breaks = "Scott", prob = TRUE)
+# 经验密度函数
+lines(density(x),lwd=2,col="black")
+# 理论密度函数
+y <- seq(-1, 1, 0.01)
+fy <- 0.75 * (1 - y^2)
+lines(y, fy,lwd=2,col="red")
+
+```
+
+# HW2
+
+## Question 1.2
+
+Take three different values of $\rho$ (0 ≤ $\rho$ ≤ 1, including ρmin) and use Monte Carlo simulation to verify your answer. (n = $10^6$, Number of repeated simulations K = 100)
+
+```{r}
+# 把整个蒙特卡罗计算pi估计值的的过程整合为一个函数
+var_pihat <- function(rho){
+  n <- 10^6
+  d <- 10
+  l <- 10*rho
+  pihat <- numeric(100)
+  for (i in 1:100) {
+    X <- runif(n,0,d/2)
+    Y <- runif(n,0,pi/2)
+    pihat[i] <- 2*l/d/mean(l/2*sin(Y)>X)
+  }
+  var(pihat)
+}
+```
+
+接下来选取$\rho=0.3$,$\rho=0.6$以及$\rho=1$来验证
+```{r}
+# rho=0.3
+var_pihat(0.3)
+# rho=0.6
+var_pihat(0.6)
+# rho=1
+var_pihat(1)
+```
+
+我们可以发现得到的方差确实在递减，且$\rho=1$时最小。
+
+## Ex 5.6
+
+Consider the antithetic variate approach to estimating$$\theta=\int_0^1e^xdx.$$ 
+Compute $Cov(e^U,e^{1-U})$ and $Var(e^{U}+e^{1-U})$, where$U\sim U(0,1)$. What is the percent reduction in variance of $\hat\theta$ that can be achieved using antithetic variate (compared with simple MC)?
+
+我们很容易就能算得 $$Cov(e^U,e^{1-U})=E[e^Ue^{1-U}]-E[e^U]E[e^{(1-U}]=e-(e-1)^2,$$
+$$Var(e^U)=E[e^{2U}]-(E[e^U])^2=\frac12(e^2-1)-(e-1)^2,$$
+以及$$Var(\frac{1}{2}(e^U+e^{1-U}))=\frac{1}{4}(2Var(e^U)+2Cov(e^U,e^{1-U}))=\frac12(\frac12(e^2-1)-(e-1)^2+e-(e-1)^2),$$其中最后一项即为使用对偶变量法时的方差。
+
+考虑$U,V ~~~ i.i.d.\sim U(0,1)$，不使用对偶变量法时，方差为$$Var(\frac12(e^U+e^V))=\frac142Var(e^U)=\frac12(\frac{1}{2}(e^2-1)-(e-1)^2),$$
+
+那么易算得方差减少的比例为
+```{r}
+v_mc <- .5*(.5*(exp(2)-1)-(exp(1)-1)^2)
+v_anti <-.5*(.5*(exp(2)-1)-(exp(1)-1)^2+exp(1)-(exp(1)-1)^2)
+(v_mc-v_anti)/v_mc                                         
+```
+
+## Ex 5.7
+
+Refer to Exercise 5.6. Use a Monte Carlo simulation to estimate $\theta$ by the antithetic variate approach and by the simple Monte Carlo method. Compute an empirical estimate of the percent reduction in variance using the antithetic variate. Compare the result with the theoretical value from Exercise 5.6.
+
+
+```{r}
+m <- 10000
+mc <- replicate(1000, expr = {
+  mean(exp(runif(m)))
+  })
+anti <- replicate(1000, expr = {
+  U <- runif(m/2)
+  mean((exp(U)+exp(1-U))/2)
+  })
+# 两种方法得到的估计值
+c(mean(mc), mean(anti))
+# 两种方法的方差
+c(var(mc), var(anti))
+# 方差减少的比例
+(var(mc) - var(anti))/var(mc)
+```
+
+可以发现，模拟算得的减少比例与理论值相差无几。
+
+# HW3
+
+## Ex 5.13
+
+
+我选择正态分布$N(1,1)$和t分布$t(1)$作为重要函数$f_1$和$f_2$.首先画出图像。
+
+```{r}
+x <- seq(1, 10, .01)
+g <- x^2 * exp(-x^2/2)/sqrt(2 * pi)
+plot(x, g, ylab = "", type = "l", ylim = c(0, 1), lwd=2, col=1)
+lines(x, 2*dnorm(x, 1, 1), lty = 2, lwd=2, col=2)
+lines(x, 2*dt(x-1, 1), lty = 3, lwd=2,col=3)
+legend("topright", inset = 0.02, legend = c("g(x)", "f1", "f2"), lty = 1:3, lwd=2, col=1:3)
+```
+
+此处取的是正态分布和t分布密度函数的一半，故对密度函数做了一些正则化，具体为将密度函数向右平移1个单位后乘二。接下来考虑$g(x)/f(x)$。
+
+```{r}
+plot(x,g/(2*dnorm(x, 1, 1)), ylab = "", type = "l", ylim = c(0, 1), lty = 2, lwd=2, col=2)
+lines(x, g/(2*dt(x-1, 1)), lty = 3, lwd=2,col=3)
+legend("topright", inset = 0.02, legend = c("f1", "f2"), lty = 2:3, lwd=2, col=2:3)
+```
+
+可以看到$f_1$对应的比值曲线更平缓，那么应该选用$f_1$作为重要函数，保守起见仍计算标准差来比较。
+```{r}
+est <- sd <- numeric(2)
+u <- runif(1e6)
+g <- function(x){x^2 * exp(-x^2/2)/sqrt(2 * pi)}
+x <- abs(rnorm(1e6))+1 #使用f1
+fg <- g(x)/(2*dnorm(x, 1, 1))
+est[1] <- mean(fg)
+sd[1] <- sd(fg)
+x <- abs(rt(1e6,1))+1
+fg <- g(x)/(2*dt(x-1, 1))
+est[2] <- mean(fg)
+sd[2] <- sd(fg)
+names(sd) <- c("f1","f2")
+sd
+```
+
+很明显看出使用$f_1$更合适。
+
+## Ex 5.14
+
+
+由Ex 5.13，取$f_1$为重要函数时，估计为
+```{r}
+est[1]
+```
+
+## Ex 5.15
+
+```{r}
+k <- 5
+g <- function(x) exp(-x)/(1 + x^2)
+f <- function(x){k/(1 - exp(-1))*exp(-x)}
+M <- 1e5
+m <- M/k
+theta <- v <- numeric(5)
+for (j in 1:k) {
+  u <- runif(m, (j - 1)/k, j/k)
+  x <- -log(1 - (1 - exp(-1)) * u)
+  fg <- g(x)/f(x)
+  theta[j] <- mean(fg)
+  v[j] <- var(fg)
+}
+sum(theta)
+sqrt(mean(v))
+```
+
+不分层的情况下
+```{r}
+f <- function(x){1/(1 - exp(-1))*exp(-x)}
+u <- runif(M)
+x <- -log(1 - (1 - exp(-1)) * u)
+fg <- g(x)/f(x)
+theta <- mean(fg)
+sd <- sd(fg)
+theta
+sd
+```
+
+可看到明显使用了分层抽样的标准差更小。
+
+## Ex 6.5
+
+```{r}
+n <- 20
+t0 <- qt(c(0.025, 0.975), df = n - 1)
+CI <- replicate(10000, expr = {
+  x <- rchisq(n, df = 2)
+  ci <- mean(x) + t0 * sd(x)/sqrt(n)
+})
+LCL <- CI[1,]
+UCL <- CI[2,]
+mean(LCL < 2 & UCL > 2)
+```
+
+显然这个区间比方差区间要更稳健。
+
+## Ex 6.A
+
+
+```{r}
+test <- function(distribution){
+  m <- 10000
+  alpha <- 0.05
+  count <- 0
+  if(distribution=="chisq"){
+    for (i in 1:m) {
+     data <- rchisq(30, df = 1)
+      result <- t.test(data, mu = 1, alternative = "two.sided")
+      if (result$p.value < alpha) {
+        count <- count + 1
+      } 
+    }
+  }
+  if(distribution=="unif"){
+    for (i in 1:m) {
+     data <- runif(30, min = 0, max = 2)
+      result <- t.test(data, mu = 1, alternative = "two.sided")
+      if (result$p.value < alpha) {
+        count <- count + 1
+      } 
+    }
+  }
+  if(distribution=="exp"){
+    for (i in 1:m) {
+     data <- rexp(30, rate = 1) 
+      result <- t.test(data, mu = 1, alternative = "two.sided")
+      if (result$p.value < alpha) {
+        count <- count + 1
+      } 
+    }
+  }
+  return(count/m)
+}
+```
+
+对$\chi^2(1)$，经验一类错误率为
+```{r}
+test("chisq")
+```
+
+对$U(0,2)$，经验一类错误率为
+```{r}
+test("unif")
+```
+
+对$exp(1)$,经验一类错误率为
+```{r}
+test("exp")
+```
+
+# HW4
+
+## 问题1
+
+```{r}
+m <- 1000
+alpha <- .1
+
+rep<- replicate(1000,{
+  H0 <- runif(.95*m,0,1)
+  H1 <- rbeta(.05*m,.1,1)
+  p <- c(H0,H1)
+  p.adj1 <- p.adjust(p,method='BH')
+  p.adj2 <- p.adjust(p,method='bonferroni')
+
+  FWER <- FDR <- TPR <- numeric(2)
+  FDR[1] <- sum(p.adj1[1:950]<alpha)/sum(p.adj1<alpha)
+  FDR[2] <- sum(p.adj2[1:950]<alpha)/sum(p.adj2<alpha)
+  FWER[1] <- (sum(p.adj1[1:950]<alpha)>0)
+  FWER[2] <- (sum(p.adj2[1:950]<alpha)>0)
+  TPR[1] <- sum(p.adj1[-(1:950)]<alpha)/50
+  TPR[2] <- sum(p.adj2[-(1:950)]<alpha)/50
+  c(FWER,FDR,TPR)
+})
+result <- apply(rep,1,FUN=mean)
+
+A <- matrix(round(result,3),ncol=3,nrow = 2)
+colnames(A)<- c("FWER","FDR","TPR")
+rownames(A)<- c("B-H","Bonferroni")
+knitr::kable(A, format = "latex")
+```
+
+
+## 问题2
+
+```{r}
+
+lambda <- 2          # 真实参数 lambda
+size <- c(5, 10, 20)  # 样本大小
+B <- 1000                 # 重抽样次数
+m <- 1000                 # boot次数
+
+mean_bias <- numeric(length(size))      
+mean_sd <- numeric(length(size))  
+
+# 模拟循环
+for (i in 1:length(size)) {
+  n <- size[i]   # 当前样本大小
+  bias <- numeric(m)   # 每次模拟的bias
+  sd <- numeric(m)  # 每次模拟的sd
+  
+  for (j in 1:m) {
+    # 生成样本
+    data <- rexp(n, rate = 1/lambda)
+    
+    # Boot
+    boot <- replicate(B, {
+      data_b <- sample(data, replace = TRUE)
+      lambda_b <- 1 / mean(data_b)
+      lambda_b
+    })
+    
+    # 计算偏差和标准误差
+    lambda_hat <- 1/mean(data)
+    bias[j] <- mean(boot) - lambda_hat
+    sd[j] <- sd(boot)
+  }
+  
+  mean_bias[i] <- mean(bias)
+  mean_sd[i] <- mean(sd)
+}
+
+# 理论值
+theo_bias <- lambda / (size - 1)
+theo_sd <- lambda * sqrt(size) / ((size - 1) * sqrt(size - 2))
+
+
+result <- matrix(round(c(size,mean_bias,theo_bias,mean_sd,theo_sd),3),nrow=3)
+colnames(result) <- c("SIze","sim_bias","theo_bias","sim_sd","theo_sd")
+knitr::kable(result, format = "latex")
+
+```
+
+## Ex 7.3
+
+Obtain a bootstrap t confidence interval estimate for the correlation statistic in Example 7.2 (law data in bootstrap).
+
+```{r}
+library(boot)
+library(bootstrap)
+attach(law)  
+
+cor.stat <- function(x,i) {
+  cor(x[i, 1], x[i, 2])  # 计算相关性统计量
+}
+
+cor.stat2 <- function(x,i) {
+  o <- boot(x[i, ], cor.stat, R = 100)
+  n <- length(i)  # 样本大小
+  # 返回相关性统计量和方差估计
+  c(o$t0, var(o$t) * (n - 1) / n^2)
+}
+
+# 使用boot函数执行Bootstrap分析
+b <- boot(law, statistic = cor.stat2, R = 1000)
+
+result <- boot.ci(b, type = "stud")
+result
+```
+
+
+# HW5
+
+## Ex 7.5
+
+Refer to Exercise 7.4. Compute 95% bootstrap confidence intervals for the mean time between failures $1/\lambda$ by the standard normal, basic, percentile, and BCa methods. Compare the intervals and explain why they may differ.
+
+```{r}
+library(boot)
+x <- aircondit
+meant <- function(x, i) return(mean(as.matrix(x[i, ])))
+b <- boot(x, statistic = meant, R = 2000)
+boot.ci(b, type = c("norm", "basic", "perc", "bca"))
+```
+
+有区别的原因是：
+(1)样本分布不是正态分布，因此分位数法的结果和正太法的结果不同。
+(2)抽样次数不够，不能很好的使用中心极限定理得到渐近分布。
+(3)Bca和分位数法不同是因为其纠正了偏度。
+
+## Ex 7.8
+
+Refer to Exercise 7.7. Obtain the jackknife estimates of bias and standard error of $\hat{\theta}$.
+
+```{r}
+library(bootstrap)
+x <- as.matrix(scor)
+n <- nrow(x)
+theta.jack <- numeric(n)
+lambda <- eigen(cov(x))$values
+theta.hat <- max(lambda/sum(lambda))
+for (i in 1:n) {
+  y <- x[-i, ]
+  s <- cov(y)
+  lambda <- eigen(s)$values
+  theta.jack[i] <- max(lambda/sum(lambda))
+  }
+bias.jack <- (n - 1) * (mean(theta.jack) - theta.hat)
+se.jack <- sqrt((n - 1)/n * sum((theta.jack - mean(theta.jack))^2))
+result <- c(theta.hat, bias.jack, se.jack)
+A <- matrix(round(result,3),ncol=3,nrow = 1)
+colnames(A)<- c("Estimate","Bias","Standard Error")
+knitr::kable(A, format = "latex")
+```
+
+# HW6
+
+# Ex 8.1
+
+Implement the two-sample Cram´er-von Mises test for equal distributions as a permutation test, where the statistics is$$W_2=\frac{mn}{(m+n)^2}\left[\sum_{i=1}^n(F_n(x_i)-G_m(x_i))^2+\sum_{j=1}^m(F_n(y_j)-G_m(y_j))^2\right]$$
+
+```{r}
+attach(chickwts)
+x <- sort(as.vector(weight[feed == "soybean"]))
+y <- sort(as.vector(weight[feed == "linseed"]))
+detach(chickwts)
+
+R <- 999
+n <- length(x)
+m <- length(y)
+z <- c(x,y)
+N <- n + m
+K <- Fn <- Gm <- numeric(N)
+for (i in 1:N) {
+  Fn[i] <- mean(as.integer(z[i] <= x))
+  Gm[i] <- mean(as.integer(z[i] <= y))
+}
+stat0 <- ((n * m)/N) * sum((Fn - Gm)^2)
+stat <- replicate(R,{
+  K <- sample(1:N)
+  Z <- z[K]
+  X <- Z[1:n]
+  Y <- Z[(n + 1):N]
+  for (i in 1:N) {
+    Fn[i] <- mean(as.integer(Z[i] <= X))
+    Gm[i] <- mean(as.integer(Z[i] <= Y))
+    }
+  ((n * m)/N) * sum((Fn - Gm)^2)
+})
+stat1 <-c(stat0,stat)
+cat("The statistic is",round(stat0,3),".","\n")
+cat("The p-value is",round(mean(stat1 >= stat0),3),".")
+```
+
+
+## Ex 8.3
+
+The Count 5 test for equal variances in Section 6.4 is based on the maximum number of extreme points. Example 6.15 shows that the Count 5 criterion is not applicable for unequal sample sizes. Implement a permutation test for equal variance based on the maximum number of extreme points that applies when sample sizes are not necessarily equal.
+
+```{r}
+maxout <- function(x,y){
+  X <- x - mean(x)
+  Y <- y - mean(y)
+  outx <- sum(X > max(Y)) + sum(X < min(Y))
+  outy <- sum(Y > max(X)) + sum(Y < min(X))
+  return(max(c(outx,outy)))
+}
+
+max.text <- function(x,y,R=999){
+  n <- length(x)
+  z <- c(x,y)
+  N <- length(z)
+  stat0 <- maxout(x,y)
+  stat <- replicate(R,{
+    k <- sample(1:N)
+    k1 <- k[1:n]
+    k2 <- k[(n + 1):N]
+    maxout(z[k1], z[k2])
+  })
+  stat1 <- c(stat0,stat)
+  p_value <- mean(stat1 >= stat0)
+  return(p_value)
+}
+
+```
+
+接下来对这个函数做些测试，考虑方差相同与不相同两种情况，计算他们的power。
+
+```{r}
+# 方差相同
+p <- replicate(1000,{
+  x <- rnorm(20,1,1)
+  y <- rnorm(40,1,1)
+  max.text(x,y)
+})
+power<- sum(p<.05)/1000
+cat("Power is",power,".\n")
+```
+
+```{r}
+# 方差不同
+p <- replicate(1000,{
+  x <- rnorm(20,1,1)
+  y <- rnorm(40,1,2)
+  max.text(x,y)
+})
+power<- sum(p<.05)/1000
+cat("Power is",power,".\n")
+```
+
+# HW7
+
+## Ex 1
+
+```{r}
+alpha <- function(N,b1,b2,b3,f0){
+  x1 <- rpois(N,1)
+  x2 <- rexp(N)
+  x3 <- rbinom(N,1,0.5)
+  g <- function(alpha){
+    tmp <- exp(-alpha-b1*x1-b2*x2-b3*x3)
+    p <- 1/(1+tmp)
+    mean(p) - f0
+  }
+  solution <- uniroot(g,c(-20,10))
+  return(alpha=solution$root)
+}
+```
+```{r}
+N <- 10^6
+b1 <-0
+b2 <- 1
+b3 <- -1
+f0 <- c(.1,.01,.001,.0001)
+alpha(N,b1,b2,b3,f0[1])
+alpha(N,b1,b2,b3,f0[2])
+alpha(N,b1,b2,b3,f0[3])
+alpha(N,b1,b2,b3,f0[4])
+```
+
+```{r}
+neg_logf0 <- c(seq(0.01,2,length.out=10),seq(2,10,length.out=20))
+alpha_seq <- numeric(30)
+for (i in 1:30) {
+  alpha_seq[i] <- alpha(N,b1,b2,b3,exp(-neg_logf0[i]))
+}
+plot(neg_logf0,alpha_seq,xlab = expression(-logf_0),ylab = "alpha",type = "l")
+```
+
+## Ex 9.4
+
+```{r}
+set.seed(12345)
+    rw.Metropolis <- function(sigma, x0, N) {
+        x <- numeric(N)
+        x[1] <- x0
+        u <- runif(N)
+        k <- 0
+        for (i in 2:N) {
+            y <- rnorm(1, x[i-1], sigma)
+                if (u[i] <= exp(abs(x[i-1]) - abs(y))){
+                   x[i] <- y  
+                   k <- k + 1
+                  }
+                else {
+                    x[i] <- x[i-1]
+                }
+            }
+        return(list(x=x, k=k))
+    }
+
+    
+    N <- 2000
+    sigma <- c(.05, .5, 4,  16)
+
+    x0 <- 25
+    rw1 <- rw.Metropolis(sigma[1], x0, N)
+    rw2 <- rw.Metropolis(sigma[2], x0, N)
+    rw3 <- rw.Metropolis(sigma[3], x0, N)
+    rw4 <- rw.Metropolis(sigma[4], x0, N)
+
+    
+    #number of candidate points accepted
+    accept.rate <- data.frame(sigma=sigma,accept.rate=c(rw1$k, rw2$k, rw3$k, rw4$k)/N)
+    knitr::kable(accept.rate,format='latex')
+```
+
+```{r} 
+      #display 4 graphs together
+    refline <- c(-qexp(.975),qexp(.975))
+    rw <- cbind(rw1$x, rw2$x, rw3$x,  rw4$x)
+    for (j in 1:4) {
+        plot(rw[,j], type="l",
+             xlab=bquote(sigma == .(round(sigma[j],3))),
+             ylab="X", ylim=range(rw[,j]))
+        abline(h=refline)
+    }
+     #reset to default
+```
+
+可以发现除第一个外的另外三条链都很快收敛到了目标拉普拉斯分布中.为比较具体效果，我将以前200次为预烧期，比较后续序列的QQ图
+
+```{r}
+  p <- ppoints(200)
+  y <- qexp(p, 1)
+  z <- c(-rev(y), y)
+  b <- 200
+  y1 <- rw1$x[(b + 1):N]
+  y2 <- rw2$x[(b + 1):N]
+  y3 <- rw3$x[(b + 1):N]
+  y4 <- rw4$x[(b + 1):N]
+  
+  Q1 <- quantile(y1, p)
+  qqplot(z, Q1, main=bquote(sigma == .(round(sigma[1],3))),
+        xlab="Laplace Quantiles", ylab="Sample Quantiles")
+  abline(0, 1,col='blue',lwd=2)
+  Q2 <- quantile(y2, p)
+  qqplot(z, Q2, main=bquote(sigma == .(round(sigma[2],3))),
+        xlab="Laplace Quantiles", ylab="Sample Quantiles")
+  abline(0, 1,col='blue',lwd=2)
+  Q3 <- quantile(y3, p)
+  qqplot(z, Q3, main=bquote(sigma == .(round(sigma[3],3))),
+        xlab="Laplace Quantiles", ylab="Sample Quantiles")
+  abline(0, 1,col='blue',lwd=2)
+  Q4 <- quantile(y4, p)
+  qqplot(z, Q4, main=bquote(sigma == .(round(sigma[4],3))),
+        xlab="Laplace Quantiles", ylab="Sample Quantiles")
+  abline(0, 1,col='blue',lwd=2)
+  
+```
+
+从QQ图来看，$\sigma=$ `r round(sigma[3],3)` 和 `r round(sigma[4],3)` 时较好。考虑到接受率，认为$\sigma=$ `r round(sigma[3],3)` 时更好。
+
+## Ex 9.7
+
+```{r}
+#initialize constants and parameters
+N <- 5000 #length of chain
+burn <- 1000 #burn-in length
+X <- matrix(0, N, 2) #the chain, a bivariate sample
+rho <- .9 #correlation
+mu1 <- 0
+mu2 <- 0
+sigma1 <- 1
+sigma2 <- 1
+s1 <- sqrt(1-rho^2)*sigma1
+s2 <- sqrt(1-rho^2)*sigma2
+###### generate the chain #####
+
+X[1, ] <- c(mu1, mu2) #initialize
+for (i in 2:N) {
+x2 <- X[i-1, 2]
+m1 <- mu1 + rho * (x2 - mu2) * sigma1/sigma2
+X[i, 1] <- rnorm(1, m1, s1)
+x1 <- X[i, 1]
+m2 <- mu2 + rho * (x1 - mu1) * sigma2/sigma1
+X[i, 2] <- rnorm(1, m2, s2)
+}
+b <- burn + 1
+x <- X[b:N, ]
+plot(x[,1],type='l',col=1,lwd=2,xlab='Index',ylab='Random numbers')
+lines(x[,2],col=2,lwd=2)
+legend('bottomright',c(expression(X),expression(Y)),col=1:2,lwd=2)
+```
+```{r}
+X <- x[, 1]
+Y <- x[, 2]
+fit <- lm(Y ~ X)
+summary(fit)
+```
+
+我们可以看到得到的数据很好得被线性模型拟合了。接下来来看看残差是不是正态的以及其方差是否恒定。
+```{r}
+qqnorm(fit$res)
+qqline(fit$res, col=2,lwd=2)
+```
+
+从QQ图可以看出，残差是正态的。
+
+```{r}
+plot(fit$fit, fit$res, cex = 0.5)
+ abline(h = 0)
+```
+
+从以上散点图可看出，残差并没有表现出异方差的形状，故可认为残差的方差恒定。
+
+## Ex 9.10
+
+使用Example9.1中的函数：
+
+```{r}
+Gelman.Rubin <- function(psi) {
+# psi[i,j] is the statistic psi(X[i,1:j])
+# for chain in i-th row of X
+psi <- as.matrix(psi)
+n <- ncol(psi)
+k <- nrow(psi)
+psi.means <- rowMeans(psi) #row means
+B <- n * var(psi.means) #between variance est.
+psi.w <- apply(psi, 1, "var") #within variances
+W <- mean(psi.w) #within est.
+v.hat <- W*(n-1)/n + (B/n) #upper variance est.
+r.hat <- v.hat / W #G-R statistic
+return(r.hat)
+}
+```
+
+```{r}
+f <- function(x, sigma) {
+if (x < 0)
+return(0)
+stopifnot(sigma > 0)
+return((x/sigma^2) * exp(-x^2/(2 * sigma^2)))
+}
+Rayleigh.MH.chain <- function(sigma, m, x0) {
+  x <- numeric(m)
+  x[1] <- x0
+  u <- runif(m)
+  for (i in 2:m) {
+    xt <- x[i - 1]
+    y <- rchisq(1, df = xt)
+    num <- f(y, sigma) * dchisq(xt, df = y)
+    den <- f(xt, sigma) * dchisq(y, df = xt)
+    if (u[i] <= num/den)
+      x[i] <- y
+    else x[i] <- xt
+  }
+  return(x)
+}
+sigma <- 4
+x0 <- c(1/sigma^2, 1/sigma, sigma^2, sigma^3)
+k <- 4
+m <- 2000
+X <- matrix(0, nrow = k, ncol = m)
+for (i in 1:k) X[i, ] <- Rayleigh.MH.chain(sigma, m, x0[i])
+psi <- t(apply(X, 1, cumsum))
+for (i in 1:nrow(psi)) psi[i, ] <- psi[i, ]/(1:ncol(psi))
+rhat <- Gelman.Rubin(psi)
+rhat
+```
+
+可以看到$\hat{R}<1.2$.
+
+```{r}
+library(coda)
+X1 <- as.mcmc(X[1, ])
+X2 <- as.mcmc(X[2, ])
+X3 <- as.mcmc(X[3, ])
+X4 <- as.mcmc(X[4, ])
+Y <- mcmc.list(X1, X2, X3, X4)
+print(gelman.diag(Y))
+gelman.plot(Y, col = c(1, 1))
+```
+
+# HW8
+
+## Ex 1(2)
+
+```{r}
+u <- c(11,8,27,13,16,0,23,10,24,2)
+v <- u+1
+# MLE 算法
+L <- function(lambda){
+  sum((v*exp(-lambda*v)-u*exp(-lambda*u))/(exp(-lambda*u)-exp(-lambda*v)))
+}
+lambda_mle <- uniroot(L,c(0,10))$root
+cat("MLE算法得到的估计为",round(lambda_mle,4))
+```
+```{r}
+# E-M 算法
+n <- length(u)
+f <- function(lambda){
+  sum(lambda*(u*exp(-lambda*u)-v*exp(-lambda*v))/(exp(-lambda*u)-exp(-lambda*v)))
+}
+g <- function(lambda){
+  n*lambda/(f(lambda)+n)
+}
+lambda0 <- .000001 #初始值
+iter <- 1
+repeat{
+  lambda_EM <- g(lambda0)
+  iter <- iter+1
+  if((abs(lambda_EM-lambda0)<.Machine$double.eps^0.25) || (iter > 1000)) break
+  lambda0 <- lambda_EM
+}
+cat("E-M算法得到的估计为",round(lambda_EM,4))
+```
+
+
+## Ex 11.8
+
+使用书上的solve.game 函数
+```{r}
+solve.game <- function(A) {
+#solve the two player zero-sum game by simplex method
+#optimize for player 1, then player 2
+#maximize v subject to ...
+#let x strategies 1:m, and put v as extra variable
+#A1, the <= constraints
+#
+min.A <- min(A)
+A <- A - min.A #so that v >= 0
+max.A <- max(A)
+A <- A / max(A)
+m <- nrow(A)
+n <- ncol(A)
+it <- n^3
+a <- c(rep(0, m), 1) #objective function
+A1 <- -cbind(t(A), rep(-1, n)) #constraints <=
+b1 <- rep(0, n)
+A3 <- t(as.matrix(c(rep(1, m), 0))) #constraints sum(x)=1
+b3 <- 1
+sx <- simplex(a=a, A1=A1, b1=b1, A3=A3, b3=b3,
+maxi=TRUE, n.iter=it)
+#the ’solution’ is [x1,x2,...,xm | value of game]
+#
+#minimize v subject to ...
+#let y strategies 1:n, with v as extra variable
+a <- c(rep(0, n), 1) #objective function
+A1 <- cbind(A, rep(-1, m)) #constraints <=
+b1 <- rep(0, m)
+A3 <- t(as.matrix(c(rep(1, n), 0))) #constraints sum(y)=1
+b3 <- 1
+sy <- simplex(a=a, A1=A1, b1=b1, A3=A3, b3=b3,
+maxi=FALSE, n.iter=it)
+soln <- list("A" = A * max.A + min.A,
+"x" = sx$soln[1:m],
+"y" = sy$soln[1:n],
+"v" = sx$soln[m+1] * max.A + min.A)
+soln
+}
+A <- matrix(c( 0,-2,-2,3,0,0,4,0,0,
+               2,0,0,0,-3,-3,4,0,0,
+               2,0,0,3,0,0,0,-4,-4,
+               -3,0,-3,0,4,0,0,5,0,
+               0,3,0,-4,0,-4,0,5,0,
+               0,3,0,0,4,0,-5,0,-5,
+               -4,-4,0,0,0,5,0,0,6,
+               0,0,4,-5,-5,0,0,0,6,
+               0,0,4,0,0,5,-6,-6,0), 9, 9)
+library(boot) #needed for simplex function
+B <- A+2
+s0 <- solve.game(A)
+s <- solve.game(B)
+s0$v # A的value
+s$v # B的value
+round(cbind(s$x, s$y),7)
+round(s$x*61, 7)
+```
+
+游戏B的极值点为原游戏A的其中一个极值点（11.15）
+
+# HW9
+
+## Ex 2.1.4
+
+Why do you need to use unlist() to convert a list to an atomic vector? Why doesn’t as.vector() work?
+
+因为unlist()可以使得有多层结构的list扁平化。
+
+## Ex 2.3.1
+
+What does dim() return when applied to a vector?
+
+NULL
+
+If is.matrix(x) is TRUE, what will is.array(x) return?
+
+TRUE，因为一个二维的array其实就是一个矩阵。
+
+## Ex 2.4.5
+
+What does as.matrix() do when applied to a data frame with columns of different types?
+
+会返回一个类型为此前最高级别类型的矩阵。
+
+Can you have a data frame with 0 rows? What about 0 columns?
+
+可以，比如：
+
+```{r}
+X <-cars
+dim(X[FALSE,])
+dim(X[,FALSE])
+dim(X[FALSE,FALSE])
+```
+
+## Ex 11.1.2
+
+The function below scales a vector so it falls in the range [0,1]. How would you apply it to every column of a data frame? How would you apply it to every numeric column in a data frame?
+
+```{r,eval=FALSE}
+scale01 <- function(x) {
+rng <- range(x, na.rm = TRUE)
+(x - rng[1]) / (rng[2] - rng[1])
+}
+```
+
+对data.frame X，只需用lapply来实现X
+```{r,eval=FALSE}
+data.frame(lapply(X, function(x) if (is.numeric(x)) scale01(x) else x))
+```
+
+## Ex 11.2.5
+
+Use vapply() to:
+
+a) Compute the standard deviation of every column in a numeric data frame.
+
+对data.frame X ，可通过一下语句实现
+```{r,eval=FALSE}
+vapply(X, sd, numeric(1))
+```
+
+b) Compute the standard deviation of every numeric column in a mixed data frame. (Hint: you’ll need to use vapply()twice.)
+
+对data.frame X ，可通过一下语句实现
+```{r,eval=FALSE}
+vapply(X[vapply(X, is.numeric, logical(1))],
+       sd, 
+       numeric(1))
+```
+
+## Ex 9.8
+
+- Write an R function.
+- Write an Rcpp function.
+- Compare the computation time of the two functions with the function “microbenchmark”.
+
+```{r}
+N <- 10000
+n <- 10
+a <- 2
+b <- 3
+gibbsR <- function(N, n, a, b) {
+  mat <- matrix(nrow = N, ncol = 2)
+  x <- y <- 0
+  for (i in 1:N) {
+    x <- rbinom(1, n, y)
+    y <- rbeta(1, x+a, n-x+b)
+    mat[i, ] <- c(x, y)
+  }
+  mat
+}
+```
+
+```{r}
+library(Rcpp)
+dir_cpp <- '../HW9/'
+# Can create source file in Rstudio
+#sourceCpp(paste0(dir_cpp,"gibbsC.cpp"))
+library(microbenchmark)
+ts <- microbenchmark(gibbsR=gibbsR(N, n, a, b),gibbsC=gibbsC(N, n, a, b))
+summary(ts)[,c(1,3,5,6)]
+```
+
+C++ 函数为：
+
+```{cpp,eval=FALSE}
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::export]]
+NumericMatrix gibbsC(int N, int n, int a, int b) {
+  NumericMatrix mat(N, 2);
+  double x = 0, y = 0;
+  for(int i = 0; i < N; i++) {
+    x = rbinom(1, 10, y)[0];
+    y = rbeta(1, x+a, n-x+b)[0];
+    mat(i, 0) = x;
+    mat(i, 1) = y;
+  }
+  return(mat);
+}
+```
